@@ -34,9 +34,11 @@ def find_pdf_links_on_page(url):
         
         # Select all <a> tags with href attributes ending in ".pdf"
         pdf_links = soup.select('a[href$=".pdf"]')
+        # return tuple of (hyperlinked text, actual link)
+        pdf_info = [(link.text, link['href']) for link in pdf_links]
         
         # Extract and return the href attributes of these <a> tags
-        return [link['href'] for link in pdf_links]
+        return pdf_info
     
     except HTTPError as e:
         print("HTTP Error:", e.code, url)
@@ -48,13 +50,23 @@ def find_pdf_links_on_page(url):
 
 def get_earnings_release_links(ticker):
     ir_url = lookup_company_info(ticker)
-    links = find_pdf_links_on_page(ir_url)
+    link_info = find_pdf_links_on_page(ir_url)
+
+    ''' logic to make sure the pdf's are the earnings releases '''
+
+    # check if the hyperlinked text includes "earnings" or "release"
+    possible_links = [link for (text, link) in link_info if ("earnings" in text.lower() or "release" in text.lower())]
     
-    print(links)
+    if len(possible_links) < 4: 
+        # need to find some more
+        
+
+    # while loop? to go further into nested pages to get link where the earnings releases are
+
     # Here you could filter or sort the links based on date or naming convention.
     # This is a simplistic approach and might need adjustments.
-    return links[:4]
+    return possible_links[:4]
 
 # Use the function
-ticker = 'META'  # Example ticker
+ticker = 'GOOG'  # Example ticker
 get_earnings_release_links(ticker)
