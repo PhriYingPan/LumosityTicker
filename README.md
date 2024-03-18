@@ -1,0 +1,3 @@
+# LumosityTicker
+
+hello 
