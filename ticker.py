@@ -1,4 +1,6 @@
 import requests
+from urllib.request import Request, urlopen
+from urllib.error import URLError, HTTPError
 from googlesearch import search
 
 
@@ -16,22 +18,33 @@ def lookup_company_info(ticker):
 
 
 def find_pdf_links_on_page(url):
-    headers = {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/58.0.3029.110 Safari/537.3'
-    }
-    # tmp_url = "https://www.lincolnfinancial.com/public/aboutus/investorrelations/financialinformation/earnings"
-    response = requests.get(url, headers=headers)
-    # print(response)
-    if response.status_code != 200:
-        print("ERROR")
-        return []
-    soup = BeautifulSoup(response.text, 'html.parser')
-    print("SOUP")
-    print(soup)
-    pdf_links = soup.select('a[href$=".pdf"]')  # Finding all PDF links
+    user_agent = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
     
-    # print(pdf_links)
-    return [link['href'] for link in pdf_links]
+    # Create a request object with the URL and User-Agent header
+    req = Request(url, headers={'User-Agent': user_agent})
+    try:
+        # Use urlopen to send the request and receive the response
+        response = urlopen(req)
+        
+        # Read the response content
+        html = response.read()
+        
+        # Parse the HTML content of the page with BeautifulSoup
+        soup = BeautifulSoup(html, 'html.parser')
+        
+        # Select all <a> tags with href attributes ending in ".pdf"
+        pdf_links = soup.select('a[href$=".pdf"]')
+        
+        # Extract and return the href attributes of these <a> tags
+        return [link['href'] for link in pdf_links]
+    
+    except HTTPError as e:
+        print("HTTP Error:", e.code, url)
+        return []
+    except URLError as e:
+        print("URL Error:", e.reason, url)
+        return []
+        
 
 def get_earnings_release_links(ticker):
     ir_url = lookup_company_info(ticker)
@@ -43,5 +56,5 @@ def get_earnings_release_links(ticker):
     return links[:4]
 
 # Use the function
-ticker = 'GOOGL'  # Example ticker
+ticker = 'META'  # Example ticker
 get_earnings_release_links(ticker)

@@ -1,3 +1,3 @@
 # LumosityTicker
 
-hello 
+pip install googlesearch
