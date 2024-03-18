@@ -2,9 +2,10 @@ import requests
 from urllib.request import Request, urlopen
 from urllib.error import URLError, HTTPError
 from googlesearch import search
-
-
 from bs4 import BeautifulSoup
+import PyPDF2
+from urllib.request import urlopen
+import io
 
 def lookup_company_info(ticker):
     
@@ -48,6 +49,34 @@ def find_pdf_links_on_page(url):
         return []
         
 
+def check_keywords(url, keyword_list):    
+    try:
+        # Open the URL
+        with urlopen(url) as response:
+            # Read the PDF content
+            pdf_file = response.read()
+        
+        # Create a PDF reader object
+        pdf_content = io.BytesIO(pdf_file)
+        pdf_reader = PyPDF2.PdfReader(pdf_content)
+        
+        # Iterate through first 3 pages in pdf
+        keyword_counter = 0
+        for page_num in range(min(len(pdf_reader.pages), 3)):
+            # Extract text from the page
+            page_text = pdf_reader.pages[page_num].extract_text().lower()
+            
+            # Check if any keyword is present in the page text
+            for keyword in keyword_list:
+                if keyword in page_text:
+                    keyword_counter += 1
+        
+        return keyword_counter
+    
+    except Exception as e:
+        print("Error:", str(e))
+        return -1
+
 def get_earnings_release_links(ticker):
     ir_url = lookup_company_info(ticker)
     link_info = find_pdf_links_on_page(ir_url)
@@ -57,16 +86,29 @@ def get_earnings_release_links(ticker):
     # check if the hyperlinked text includes "earnings" or "release"
     possible_links = [link for (text, link) in link_info if ("earnings" in text.lower() or "release" in text.lower())]
     
+    # TODO: prob better to make tuple of (link, num_keywords_in_link) and sort by number of keywords BUT this will be really slow
+    # TODO: you can probably generate a "score" of how likely a link is to be a quarterly earnings release by weighting diff factors 
+    # like hyperlink text match, number of keyword match, if link has "q1/q2/q3/q4" in it, etc
+
     if len(possible_links) < 4: 
         # need to find some more
-        
-
+        keywords = ['quarter', 'EPS', 'earnings per share'] # 'revenue', 'income', 'costs'
+        all_links = [link for (text, link) in link_info]
+        links_keyword_count = []
+        # TODO: only searching the first 10 links rn
+        for link in all_links[:10]:
+            num_matching_pages = check_keywords(link, keywords)
+            links_keyword_count.append((num_matching_pages, link))
+            sorted_links_keyword_count = sorted(links_keyword_count, key=lambda x: x[0])
+    else:
+        return possible_links[:4]
+    
     # while loop? to go further into nested pages to get link where the earnings releases are
 
     # Here you could filter or sort the links based on date or naming convention.
     # This is a simplistic approach and might need adjustments.
-    return possible_links[:4]
+    return [link for (val, link) in sorted_links_keyword_count][:4]
 
 # Use the function
 ticker = 'GOOG'  # Example ticker
-get_earnings_release_links(ticker)
+print(get_earnings_release_links(ticker))
